@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ranking Pages for Content Refresh</title>
+  <style>
+    body {
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.55;
+      max-width: 820px;
+      margin: 40px auto;
+      padding: 0 20px;
+      color: #222;
+      background: #fff;
+    }
+    h1, h2 { font-weight: 700; }
+    h1 { font-size: 1.8rem; margin-bottom: 0.4rem; }
+    h2 {
+      font-size: 1.25rem;
+      margin-top: 2rem;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 0.3rem;
+    }
+    .sub { color: #555; margin-bottom: 1.5rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; }
+    th { background: #f5f5f5; }
+    .note {
+      background: #f8f8f8;
+      padding: 12px 14px;
+      border-left: 3px solid #888;
+    }
+    a { color: #1a5f8a; }
+    code { font-family: ui-monospace, monospace; font-size: 0.92em; }
+    ol, ul { padding-left: 1.3rem; }
+  </style>
+</head>
+<body>
+
+  <h1>Ranking Pages for Content Refresh: A Learned Opportunity Score vs a Hand-Written Rule</h1>
+  <p class="sub">FlyRank ML Internship Capstone · Fatima-Tu-Zahra</p>
+
+  <h2>Abstract</h2>
+  <p>
+    Small content teams need a short list of which pages to refresh first.
+    This project uses anonymized page-level search and content signals from the FlyRank ML Internship dataset.
+    A hand-written baseline rule is compared to tree-based models on the same client-holdout split, using Precision@50.
+    On this run, random forest reaches 0.62 Precision@50 versus 0.50 for the baseline (decision tree 0.42).
+    The output is a ranked action queue with scores, actions, and reason codes for human review, not auto-publish.
+  </p>
+
+  <h2>1. Introduction / Problem</h2>
+  <p>
+    A content team often has more pages than review time. Choosing what to refresh first is usually informal.
+    This project supports one decision: given page-level signals, which pages should enter the next refresh queue first?
+    The goal is a short ranked list a person can act on, not a full site audit and not a claim about any search engine’s ranking algorithm.
+  </p>
+  <ul>
+    <li><strong>Unit of analysis:</strong> one content item (page)</li>
+    <li><strong>Output:</strong> ranked queue with score, action, and reason codes</li>
+    <li><strong>Human action:</strong> review the top of the queue and refresh or monitor within capacity</li>
+    <li><strong>Cost of a wrong call:</strong> wasted editor time or missed high-demand aging pages</li>
+  </ul>
+
+  <h2>2. Data</h2>
+  <p>
+    Source: FlyRank ML Internship dataset (starter page-level table and warehouse access pattern used across the track).
+    Reproducible comparison table: <code>data/raw/content_refresh_anonymized.csv</code> (~30,000 rows).
+  </p>
+  <p>
+    Excluded from public outputs and model features: client names, domains, URLs, private queries, credentials,
+    and label shortcuts such as using <code>trend_direction</code> as a model feature or inside the baseline score.
+    Pseudonymous IDs are used only for grouping/splitting and display, never as predictive features.
+  </p>
+
+  <h2>3. Methodology</h2>
+  <ul>
+    <li><strong>Task:</strong> ranking / opportunity scoring</li>
+    <li><strong>Proxy label:</strong> <code>is_declining = 1</code> when <code>trend_direction</code> is down</li>
+    <li><strong>Baseline:</strong> hand-written score on non-label signals only (impressions, age, CTR, position, thinness)</li>
+    <li><strong>Models:</strong> decision tree and random forest, ranked by positive-class probability</li>
+    <li><strong>Features:</strong> impressions_90d, clicks_90d, ctr, content_age_days, word_count, avg_position, search_volume</li>
+    <li><strong>Validation:</strong> GroupShuffleSplit on client_id (25% test, random_state=42)</li>
+    <li><strong>Metric:</strong> Precision@50 on the held-out set</li>
+  </ul>
+
+  <h2>4. Results</h2>
+  <p>Same holdout for every method. Test declining base rate ≈ 0.517.</p>
+  <table>
+    <thead>
+      <tr><th>Model</th><th>Precision@50</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>baseline_rules</td><td>0.50</td></tr>
+      <tr><td>decision_tree</td><td>0.42</td></tr>
+      <tr><td>random_forest</td><td>0.62</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Random forest is about 1.24× the baseline on this split.
+    Decision tree underperformed the baseline here; that result is reported as measured.
+    Artifacts: <code>work/outputs/capstone_precision_at_50.csv</code>,
+    <code>capstone_top10_queue.csv</code>, and the comparison chart PNG.
+  </p>
+
+  <h2>5. Limitations</h2>
+  <div class="note">
+    This is offline decision support. It does not prove that refreshing a flagged page causes traffic gains,
+    does not treat the proxy label as confirmed editorial truth, and does not report live team adoption.
+    Results are directional and measured on one holdout design.
+  </div>
+
+  <h2>6. Ranked recommendations</h2>
+  <ol>
+    <li>Sort by model score descending</li>
+    <li>Review the top of the queue first</li>
+    <li>Use reason codes (high impressions, low CTR, aging, striking distance) to understand each flag</li>
+    <li>Cap weekly capacity (example: top 8–10)</li>
+    <li>Human makes the final call — the queue is a reviewer aid, not auto-publish</li>
+  </ol>
+
+  <h2>7. Reproducibility</h2>
+  <p>
+    Repository: <a href="https://github.com/Fatima-05/FlyRank-ML">https://github.com/Fatima-05/FlyRank-ML</a><br />
+    Capstone notebook: <code>work/notebooks/capstone.ipynb</code><br />
+    Written report: <code>work/capstone_report.md</code><br />
+    Seeds: <code>random_state=42</code> for split and models
+  </p>
+
+  <h2>8. Acknowledgments &amp; data credit</h2>
+  <p>
+    Built on the FlyRank ML Internship dataset.<br />
+    Data credit: <a href="https://flyrank.ai">https://flyrank.ai</a>
+  </p>
+
+</body>
+</html>
